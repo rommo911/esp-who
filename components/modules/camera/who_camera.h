@@ -200,7 +200,7 @@ extern "C"
 #endif
     /**
      * @brief Initialize camera
-     * 
+     *
      * @param pixformat    One of
      *                     - PIXFORMAT_RGB565
      *                     - PIXFORMAT_YUV422
@@ -236,10 +236,11 @@ extern "C"
      * @param fb_count     Number of frame buffers to be allocated. If more than one, then each frame will be acquired (double speed)
      */
     void register_camera(const pixformat_t pixel_fromat,
-                         const framesize_t frame_size,
-                         const uint8_t fb_count,
-                         const QueueHandle_t frame_o);
-
+        const framesize_t frame_size,
+        const uint8_t fb_count,
+        const QueueHandle_t frame_o);
+    esp_err_t register_camera_custom(camera_config_t config, const QueueHandle_t frame_o);
+    TaskHandle_t get_camera_task_handle();
 #ifdef __cplusplus
 }
 #endif
