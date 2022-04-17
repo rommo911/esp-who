@@ -14,7 +14,7 @@ typedef enum
     DELETE,
 } recognizer_state_t;
 
-void register_human_face_recognition(QueueHandle_t frame_i,
+void esp_who_register_human_face_recognition(QueueHandle_t frame_i,
                                      QueueHandle_t event,
                                      QueueHandle_t result,
                                      QueueHandle_t frame_o = NULL,

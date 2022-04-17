@@ -35,7 +35,7 @@ static void task_trace(void *arg)
     vTaskDelete(NULL);
 }
 
-void register_trace()
+void esp_who_register_trace()
 {
     xTaskCreate(task_trace, "trace", 3 * 1024, NULL, 5, NULL);
 }

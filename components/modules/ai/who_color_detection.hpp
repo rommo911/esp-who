@@ -17,7 +17,7 @@ typedef enum
     SWITCH_RESULT,
 } color_detection_state_t;
 
-void register_color_detection(QueueHandle_t frame_i,
+void esp_who_register_color_detection(QueueHandle_t frame_i,
                                      QueueHandle_t event,
                                      QueueHandle_t result,
                                      QueueHandle_t frame_o = NULL,

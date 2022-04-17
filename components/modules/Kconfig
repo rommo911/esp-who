@@ -58,6 +58,19 @@ menu "ESP-WHO Configuration"
 
     endmenu
 
+    menu "Camera webserver Config"
+        config CAMERA_APP_HTTPD_CORE
+            int "APP_HTTPD_CORE"
+            default 0
+            range 0 1
+        config CAMERA_APP_HTTPD_TASK_PRIORITY
+            int "config CAMERA_APP_HTTPD_TASK_PRIORITY"
+            default 3
+            range 1 20
+        config CAMERA_APP_HTTPD_STREAM_IN_IRAM
+            bool "CAMERA_APP_HTTPD_STREAM_IN_IRAM"
+    endmenu
+
     menu "Camera Configuration"
 
         choice CAMERA_MODULE

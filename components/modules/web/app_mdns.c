@@ -60,7 +60,7 @@ static void mdns_query_for_cams()
 	xSemaphoreGive(query_lock);
 }
 
-static void mdns_task(void * arg)
+static void esp_who_mdns_task(void * arg)
 {
 	for (;;) {
 		mdns_query_for_cams();
@@ -74,7 +74,7 @@ static void mdns_task(void * arg)
 *  Public Functions
 */
 
-const char * app_mdns_query(size_t * out_len)
+const char * esp_who_mdns_query(size_t * out_len)
 {
 	//build JSON
     static char json_response[2048];
@@ -158,7 +158,7 @@ const char * app_mdns_query(size_t * out_len)
     return (const char *)json_response;
 }
 
-void app_mdns_update_framesize(int size)
+void esp_who_mdns_update_framesize(int size)
 {
     snprintf(framesize, 4, "%d", size);
     if(mdns_service_txt_item_set(service_name, proto, "framesize", (char*)framesize)){
@@ -166,7 +166,7 @@ void app_mdns_update_framesize(int size)
     }
 }
 
-void app_mdns_main()
+void esp_who_register_mdns()
 {	
     uint8_t mac[6];
 
@@ -246,5 +246,5 @@ void app_mdns_main()
         return;
     }
 
-    xTaskCreate(mdns_task, "mdns-cam", 2048, NULL, 2, NULL);
+    xTaskCreate(esp_who_, "mdns-cam", 2048, NULL, 2, NULL);
 }

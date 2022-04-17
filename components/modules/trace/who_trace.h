@@ -5,7 +5,7 @@ extern "C"
 {
 #endif
 
-    void register_trace();
+    void esp_who_register_trace();
 
 #ifdef __cplusplus
 }

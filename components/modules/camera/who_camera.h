@@ -241,6 +241,11 @@ extern "C"
         const QueueHandle_t frame_o);
     esp_err_t register_camera_custom(camera_config_t config, const QueueHandle_t frame_o);
     TaskHandle_t get_camera_task_handle();
+    esp_err_t esp_camera_suspend_capture_task();
+    esp_err_t esp_camera_resume_capture_task();
+    /**
+     * @brief Deinitialize camera
+     */
 #ifdef __cplusplus
 }
 #endif

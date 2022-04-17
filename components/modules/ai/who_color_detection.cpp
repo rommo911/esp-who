@@ -274,7 +274,7 @@ static void task_event_handler(void *arg)
     }
 }
 
-void register_color_detection(const QueueHandle_t frame_i,
+void esp_who_register_color_detection(const QueueHandle_t frame_i,
                               const QueueHandle_t event,
                               const QueueHandle_t result,
                               const QueueHandle_t frame_o,

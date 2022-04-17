@@ -6,14 +6,19 @@
 static const char* TAG = "who_camera";
 static QueueHandle_t xQueueFrameO = NULL;
 TaskHandle_t esp_camera_task_handle = NULL;
+SemaphoreHandle_t esp_camera_task_semaphore = NULL;
 
 static IRAM_ATTR void task_process_handler(void* arg)
 {
+
     while (true)
     {
+        xSemaphoreTake(esp_camera_task_semaphore, portMAX_DELAY);
         camera_fb_t* frame = esp_camera_fb_get();
+        xSemaphoreGive(esp_camera_task_semaphore);
         if (frame)
             xQueueSend(xQueueFrameO, &frame, portMAX_DELAY);
+
     }
 }
 
@@ -84,6 +89,7 @@ void register_camera(const pixformat_t pixel_fromat,
     }
 
     xQueueFrameO = frame_o;
+    esp_camera_task_semaphore = xSemaphoreCreateBinary();
     if (xTaskCreatePinnedToCore(task_process_handler, TAG, 2 * 1024, NULL, 5, &esp_camera_task_handle, 1) == pdPASS)
     {
         ESP_LOGI(TAG, "Camera task created");
@@ -130,6 +136,7 @@ esp_err_t register_camera_custom(camera_config_t config, const QueueHandle_t fra
     }
 
     xQueueFrameO = frame_o;
+    esp_camera_task_semaphore = xSemaphoreCreateBinary();
     if (xTaskCreatePinnedToCore(task_process_handler, TAG, 2 * 1024, NULL, 5, &esp_camera_task_handle, 1) == pdPASS)
     {
         ESP_LOGI(TAG, "Camera task created");
@@ -141,4 +148,35 @@ esp_err_t register_camera_custom(camera_config_t config, const QueueHandle_t fra
 TaskHandle_t get_camera_task_handle()
 {
     return esp_camera_task_handle;
+}
+
+esp_err_t esp_camera_suspend_capture_task()
+{
+    if (esp_camera_task_handle == NULL)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (eTaskGetState(esp_camera_task_handle) == eSuspended)
+    {
+        return ESP_OK;
+    }
+    xSemaphoreTake(esp_camera_task_semaphore, portMAX_DELAY);
+    vTaskSuspend(esp_camera_task_handle);
+    xSemaphoreGive(esp_camera_task_semaphore);
+    return ESP_OK;
+}
+esp_err_t esp_camera_resume_capture_task()
+{
+    if (esp_camera_task_handle == NULL)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (eTaskGetState(esp_camera_task_handle) == eSuspended)
+    {
+        xSemaphoreTake(esp_camera_task_semaphore, portMAX_DELAY);
+        vTaskResume(esp_camera_task_handle);
+        xSemaphoreGive(esp_camera_task_semaphore);
+        return ESP_OK;
+    }
+    return ESP_ERR_INVALID_STATE;
 }

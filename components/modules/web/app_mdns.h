@@ -7,9 +7,9 @@ extern "C"
 
 #include <stddef.h>
 
-    void app_mdns_main();
-    void app_mdns_update_framesize(int size);
-    const char *app_mdns_query(size_t *out_len);
+    void esp_who_register_mdns();
+    void esp_who_mdns_update_framesize(int size);
+    const char *esp_who_mdns_query(size_t *out_len);
 
 #ifdef __cplusplus
 }

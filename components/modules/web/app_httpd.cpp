@@ -29,8 +29,15 @@
 #define TAG ""
 #else
 #include "esp_log.h"
-static const char *TAG = "camera_httpd";
+static const char* TAG = "camera_httpd";
 #endif
+
+#ifdef CONFIG_CAMERA_APP_HTTPD_STREAM_IN_IRAM
+#define APP_HTTPD_STREAM_IN_IRAM_ENABLED IRAM_ATTR
+#else 
+#define APP_HTTPD_STREAM_IN_IRAM_ENABLED
+#endif
+
 
 static QueueHandle_t xQueueFrameI = NULL;
 static QueueHandle_t xQueueFrameO = NULL;
@@ -42,26 +49,26 @@ static int8_t is_enrolling = 0;
 
 typedef struct
 {
-    httpd_req_t *req;
+    httpd_req_t* req;
     size_t len;
 } jpg_chunking_t;
 
 #define PART_BOUNDARY "123456789000000000000987654321"
-static const char *_STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
-static const char *_STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
-static const char *_STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\nX-Timestamp: %d.%06d\r\n\r\n";
+static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
+static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
+static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\nX-Timestamp: %d.%06d\r\n\r\n";
 
 httpd_handle_t stream_httpd = NULL;
 httpd_handle_t camera_httpd = NULL;
 
-static size_t jpg_encode_stream(void *arg, size_t index, const void *data, size_t len)
+static size_t jpg_encode_stream(void* arg, size_t index, const void* data, size_t len)
 {
-    jpg_chunking_t *j = (jpg_chunking_t *)arg;
+    jpg_chunking_t* j = (jpg_chunking_t*)arg;
     if (!index)
     {
         j->len = 0;
     }
-    if (httpd_resp_send_chunk(j->req, (const char *)data, len) != ESP_OK)
+    if (httpd_resp_send_chunk(j->req, (const char*)data, len) != ESP_OK)
     {
         return 0;
     }
@@ -69,9 +76,9 @@ static size_t jpg_encode_stream(void *arg, size_t index, const void *data, size_
     return len;
 }
 
-static esp_err_t capture_handler(httpd_req_t *req)
+static APP_HTTPD_STREAM_IN_IRAM_ENABLED esp_err_t capture_handler(httpd_req_t* req)
 {
-    camera_fb_t *frame = NULL;
+    camera_fb_t* frame = NULL;
     esp_err_t res = ESP_OK;
 
     if (xQueueReceive(xQueueFrameI, &frame, portMAX_DELAY))
@@ -82,17 +89,17 @@ static esp_err_t capture_handler(httpd_req_t *req)
 
         char ts[32];
         snprintf(ts, 32, "%ld.%06ld", frame->timestamp.tv_sec, frame->timestamp.tv_usec);
-        httpd_resp_set_hdr(req, "X-Timestamp", (const char *)ts);
+        httpd_resp_set_hdr(req, "X-Timestamp", (const char*)ts);
 
         // size_t fb_len = 0;
         if (frame->format == PIXFORMAT_JPEG)
         {
-                // fb_len = frame->len;
-            res = httpd_resp_send(req, (const char *)frame->buf, frame->len);
+            // fb_len = frame->len;
+            res = httpd_resp_send(req, (const char*)frame->buf, frame->len);
         }
         else
         {
-            jpg_chunking_t jchunk = {req, 0};
+            jpg_chunking_t jchunk = { req, 0 };
             res = frame2jpg_cb(frame, 80, jpg_encode_stream, &jchunk) ? ESP_OK : ESP_FAIL;
             httpd_resp_send_chunk(req, NULL, 0);
             // fb_len = jchunk.len;
@@ -121,14 +128,14 @@ static esp_err_t capture_handler(httpd_req_t *req)
     return res;
 }
 
-static esp_err_t stream_handler(httpd_req_t *req)
+static APP_HTTPD_STREAM_IN_IRAM_ENABLED esp_err_t stream_handler(httpd_req_t* req)
 {
-    camera_fb_t *frame = NULL;
+    camera_fb_t* frame = NULL;
     struct timeval _timestamp;
     esp_err_t res = ESP_OK;
     size_t _jpg_buf_len = 0;
-    uint8_t *_jpg_buf = NULL;
-    char *part_buf[128];
+    uint8_t* _jpg_buf = NULL;
+    char* part_buf[128];
 
     res = httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
     if (res != ESP_OK)
@@ -169,13 +176,13 @@ static esp_err_t stream_handler(httpd_req_t *req)
 
         if (res == ESP_OK)
         {
-            size_t hlen = snprintf((char *)part_buf, 128, _STREAM_PART, _jpg_buf_len, _timestamp.tv_sec, _timestamp.tv_usec);
-            res = httpd_resp_send_chunk(req, (const char *)part_buf, hlen);
+            size_t hlen = snprintf((char*)part_buf, 128, _STREAM_PART, _jpg_buf_len, _timestamp.tv_sec, _timestamp.tv_usec);
+            res = httpd_resp_send_chunk(req, (const char*)part_buf, hlen);
         }
 
         if (res == ESP_OK)
         {
-            res = httpd_resp_send_chunk(req, (const char *)_jpg_buf, _jpg_buf_len);
+            res = httpd_resp_send_chunk(req, (const char*)_jpg_buf, _jpg_buf_len);
         }
 
         if (frame->format != PIXFORMAT_JPEG)
@@ -206,15 +213,15 @@ static esp_err_t stream_handler(httpd_req_t *req)
     return res;
 }
 
-static esp_err_t parse_get(httpd_req_t *req, char **obuf)
+static esp_err_t parse_get(httpd_req_t* req, char** obuf)
 {
-    char *buf = NULL;
+    char* buf = NULL;
     size_t buf_len = 0;
 
     buf_len = httpd_req_get_url_query_len(req) + 1;
     if (buf_len > 1)
     {
-        buf = (char *)malloc(buf_len);
+        buf = (char*)malloc(buf_len);
         if (!buf)
         {
             httpd_resp_send_500(req);
@@ -231,9 +238,9 @@ static esp_err_t parse_get(httpd_req_t *req, char **obuf)
     return ESP_FAIL;
 }
 
-static esp_err_t cmd_handler(httpd_req_t *req)
+static esp_err_t cmd_handler(httpd_req_t* req)
 {
-    char *buf = NULL;
+    char* buf = NULL;
     char variable[32];
     char value[32];
 
@@ -249,7 +256,7 @@ static esp_err_t cmd_handler(httpd_req_t *req)
 
     int val = atoi(value);
     ESP_LOGI(TAG, "%s = %d", variable, val);
-    sensor_t *s = esp_camera_sensor_get();
+    sensor_t* s = esp_camera_sensor_get();
     int res = 0;
 
     if (!strcmp(variable, "framesize"))
@@ -259,7 +266,7 @@ static esp_err_t cmd_handler(httpd_req_t *req)
             res = s->set_framesize(s, (framesize_t)val);
             if (res == 0)
             {
-                app_mdns_update_framesize(val);
+                esp_who_mdns_update_framesize(val);
             }
         }
     }
@@ -346,17 +353,17 @@ static esp_err_t cmd_handler(httpd_req_t *req)
     return httpd_resp_send(req, NULL, 0);
 }
 
-static int print_reg(char *p, sensor_t *s, uint16_t reg, uint32_t mask)
+static int print_reg(char* p, sensor_t* s, uint16_t reg, uint32_t mask)
 {
     return sprintf(p, "\"0x%x\":%u,", reg, s->get_reg(s, reg, mask));
 }
 
-static esp_err_t status_handler(httpd_req_t *req)
+static esp_err_t status_handler(httpd_req_t* req)
 {
     static char json_response[1024];
 
-    sensor_t *s = esp_camera_sensor_get();
-    char *p = json_response;
+    sensor_t* s = esp_camera_sensor_get();
+    char* p = json_response;
     *p++ = '{';
 
     if (s->id.PID == OV5640_PID || s->id.PID == OV3660_PID)
@@ -437,18 +444,18 @@ static esp_err_t status_handler(httpd_req_t *req)
     return httpd_resp_send(req, json_response, strlen(json_response));
 }
 
-static esp_err_t mdns_handler(httpd_req_t *req)
+static esp_err_t mdns_handler(httpd_req_t* req)
 {
     size_t json_len = 0;
-    const char *json_response = app_mdns_query(&json_len);
+    const char* json_response = esp_who_mdns_query(&json_len);
     httpd_resp_set_type(req, "application/json");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     return httpd_resp_send(req, json_response, json_len);
 }
 
-static esp_err_t xclk_handler(httpd_req_t *req)
+static esp_err_t xclk_handler(httpd_req_t* req)
 {
-    char *buf = NULL;
+    char* buf = NULL;
     char _xclk[32];
 
     if (parse_get(req, &buf) != ESP_OK ||
@@ -463,7 +470,7 @@ static esp_err_t xclk_handler(httpd_req_t *req)
     int xclk = atoi(_xclk);
     ESP_LOGI(TAG, "Set XCLK: %d MHz", xclk);
 
-    sensor_t *s = esp_camera_sensor_get();
+    sensor_t* s = esp_camera_sensor_get();
     int res = s->set_xclk(s, LEDC_TIMER_0, xclk);
     if (res)
     {
@@ -474,9 +481,9 @@ static esp_err_t xclk_handler(httpd_req_t *req)
     return httpd_resp_send(req, NULL, 0);
 }
 
-static esp_err_t reg_handler(httpd_req_t *req)
+static esp_err_t reg_handler(httpd_req_t* req)
 {
-    char *buf = NULL;
+    char* buf = NULL;
     char _reg[32];
     char _mask[32];
     char _val[32];
@@ -497,7 +504,7 @@ static esp_err_t reg_handler(httpd_req_t *req)
     int val = atoi(_val);
     ESP_LOGI(TAG, "Set Register: reg: 0x%02x, mask: 0x%02x, value: 0x%02x", reg, mask, val);
 
-    sensor_t *s = esp_camera_sensor_get();
+    sensor_t* s = esp_camera_sensor_get();
     int res = s->set_reg(s, reg, mask, val);
     if (res)
     {
@@ -508,9 +515,9 @@ static esp_err_t reg_handler(httpd_req_t *req)
     return httpd_resp_send(req, NULL, 0);
 }
 
-static esp_err_t greg_handler(httpd_req_t *req)
+static esp_err_t greg_handler(httpd_req_t* req)
 {
-    char *buf = NULL;
+    char* buf = NULL;
     char _reg[32];
     char _mask[32];
 
@@ -526,7 +533,7 @@ static esp_err_t greg_handler(httpd_req_t *req)
 
     int reg = atoi(_reg);
     int mask = atoi(_mask);
-    sensor_t *s = esp_camera_sensor_get();
+    sensor_t* s = esp_camera_sensor_get();
     int res = s->get_reg(s, reg, mask);
     if (res < 0)
     {
@@ -535,12 +542,12 @@ static esp_err_t greg_handler(httpd_req_t *req)
     ESP_LOGI(TAG, "Get Register: reg: 0x%02x, mask: 0x%02x, value: 0x%02x", reg, mask, res);
 
     char buffer[20];
-    const char *val = itoa(res, buffer, 10);
+    const char* val = itoa(res, buffer, 10);
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     return httpd_resp_send(req, val, strlen(val));
 }
 
-static int parse_get_var(char *buf, const char *key, int def)
+static int parse_get_var(char* buf, const char* key, int def)
 {
     char _int[16];
     if (httpd_query_key_value(buf, key, _int, sizeof(_int)) != ESP_OK)
@@ -550,9 +557,9 @@ static int parse_get_var(char *buf, const char *key, int def)
     return atoi(_int);
 }
 
-static esp_err_t pll_handler(httpd_req_t *req)
+static esp_err_t pll_handler(httpd_req_t* req)
 {
-    char *buf = NULL;
+    char* buf = NULL;
 
     if (parse_get(req, &buf) != ESP_OK)
     {
@@ -572,7 +579,7 @@ static esp_err_t pll_handler(httpd_req_t *req)
     free(buf);
 
     ESP_LOGI(TAG, "Set Pll: bypass: %d, mul: %d, sys: %d, root: %d, pre: %d, seld5: %d, pclken: %d, pclk: %d", bypass, mul, sys, root, pre, seld5, pclken, pclk);
-    sensor_t *s = esp_camera_sensor_get();
+    sensor_t* s = esp_camera_sensor_get();
     int res = s->set_pll(s, bypass, mul, sys, root, pre, seld5, pclken, pclk);
     if (res)
     {
@@ -583,9 +590,9 @@ static esp_err_t pll_handler(httpd_req_t *req)
     return httpd_resp_send(req, NULL, 0);
 }
 
-static esp_err_t win_handler(httpd_req_t *req)
+static esp_err_t win_handler(httpd_req_t* req)
 {
-    char *buf = NULL;
+    char* buf = NULL;
 
     if (parse_get(req, &buf) != ESP_OK)
     {
@@ -609,7 +616,7 @@ static esp_err_t win_handler(httpd_req_t *req)
     free(buf);
 
     ESP_LOGI(TAG, "Set Window: Start: %d %d, End: %d %d, Offset: %d %d, Total: %d %d, Output: %d %d, Scale: %u, Binning: %u", startX, startY, endX, endY, offsetX, offsetY, totalX, totalY, outputX, outputY, scale, binning);
-    sensor_t *s = esp_camera_sensor_get();
+    sensor_t* s = esp_camera_sensor_get();
     int res = s->set_res_raw(s, startX, startY, endX, endY, offsetX, offsetY, totalX, totalY, outputX, outputY, scale, binning);
     if (res)
     {
@@ -620,7 +627,7 @@ static esp_err_t win_handler(httpd_req_t *req)
     return httpd_resp_send(req, NULL, 0);
 }
 
-static esp_err_t index_handler(httpd_req_t *req)
+static esp_err_t index_handler(httpd_req_t* req)
 {
     extern const unsigned char index_ov2640_html_gz_start[] asm("_binary_index_ov2640_html_gz_start");
     extern const unsigned char index_ov2640_html_gz_end[] asm("_binary_index_ov2640_html_gz_end");
@@ -636,20 +643,20 @@ static esp_err_t index_handler(httpd_req_t *req)
 
     httpd_resp_set_type(req, "text/html");
     httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
-    sensor_t *s = esp_camera_sensor_get();
+    sensor_t* s = esp_camera_sensor_get();
     if (s != NULL)
     {
         if (s->id.PID == OV3660_PID)
         {
-            return httpd_resp_send(req, (const char *)index_ov3660_html_gz_start, index_ov3660_html_gz_len);
+            return httpd_resp_send(req, (const char*)index_ov3660_html_gz_start, index_ov3660_html_gz_len);
         }
         else if (s->id.PID == OV5640_PID)
         {
-            return httpd_resp_send(req, (const char *)index_ov5640_html_gz_start, index_ov5640_html_gz_len);
+            return httpd_resp_send(req, (const char*)index_ov5640_html_gz_start, index_ov5640_html_gz_len);
         }
         else
         {
-            return httpd_resp_send(req, (const char *)index_ov2640_html_gz_start, index_ov2640_html_gz_len);
+            return httpd_resp_send(req, (const char*)index_ov2640_html_gz_start, index_ov2640_html_gz_len);
         }
     }
     else
@@ -659,17 +666,17 @@ static esp_err_t index_handler(httpd_req_t *req)
     }
 }
 
-static esp_err_t monitor_handler(httpd_req_t *req)
+static esp_err_t monitor_handler(httpd_req_t* req)
 {
     extern const unsigned char monitor_html_gz_start[] asm("_binary_monitor_html_gz_start");
     extern const unsigned char monitor_html_gz_end[] asm("_binary_monitor_html_gz_end");
     size_t monitor_html_gz_len = monitor_html_gz_end - monitor_html_gz_start;
     httpd_resp_set_type(req, "text/html");
     httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
-    return httpd_resp_send(req, (const char *)monitor_html_gz_start, monitor_html_gz_len);
+    return httpd_resp_send(req, (const char*)monitor_html_gz_start, monitor_html_gz_len);
 }
 
-void register_httpd(const QueueHandle_t frame_i, const QueueHandle_t frame_o, const bool return_fb)
+void esp_who_register_httpd(const QueueHandle_t frame_i, const QueueHandle_t frame_o, const bool return_fb)
 {
     xQueueFrameI = frame_i;
     xQueueFrameO = frame_o;
@@ -682,73 +689,73 @@ void register_httpd(const QueueHandle_t frame_i, const QueueHandle_t frame_o, co
         .uri = "/",
         .method = HTTP_GET,
         .handler = index_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
     httpd_uri_t status_uri = {
         .uri = "/status",
         .method = HTTP_GET,
         .handler = status_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
     httpd_uri_t cmd_uri = {
         .uri = "/control",
         .method = HTTP_GET,
         .handler = cmd_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
     httpd_uri_t capture_uri = {
         .uri = "/capture",
         .method = HTTP_GET,
         .handler = capture_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
     httpd_uri_t stream_uri = {
         .uri = "/stream",
         .method = HTTP_GET,
         .handler = stream_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
     httpd_uri_t xclk_uri = {
         .uri = "/xclk",
         .method = HTTP_GET,
         .handler = xclk_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
     httpd_uri_t reg_uri = {
         .uri = "/reg",
         .method = HTTP_GET,
         .handler = reg_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
     httpd_uri_t greg_uri = {
         .uri = "/greg",
         .method = HTTP_GET,
         .handler = greg_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
     httpd_uri_t pll_uri = {
         .uri = "/pll",
         .method = HTTP_GET,
         .handler = pll_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
     httpd_uri_t win_uri = {
         .uri = "/resolution",
         .method = HTTP_GET,
         .handler = win_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
     httpd_uri_t mdns_uri = {
         .uri = "/mdns",
         .method = HTTP_GET,
         .handler = mdns_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
     httpd_uri_t monitor_uri = {
         .uri = "/monitor",
         .method = HTTP_GET,
         .handler = monitor_handler,
-        .user_ctx = NULL};
+        .user_ctx = NULL };
 
     ESP_LOGI(TAG, "Starting web server on port: '%d'", config.server_port);
     if (httpd_start(&camera_httpd, &config) == ESP_OK)
@@ -770,6 +777,8 @@ void register_httpd(const QueueHandle_t frame_i, const QueueHandle_t frame_o, co
 
     config.server_port += 1;
     config.ctrl_port += 1;
+    config.task_priority = CONFIG_CAMERA_APP_HTTPD_TASK_PRIORITY;      /*!< Priority of FreeRTOS task which runs the server */
+    config.core_id = CONFIG_CAMERA_APP_HTTPD_CORE;
     ESP_LOGI(TAG, "Starting stream server on port: '%d'", config.server_port);
     if (httpd_start(&stream_httpd, &config) == ESP_OK)
     {

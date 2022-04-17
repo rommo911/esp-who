@@ -5,4 +5,4 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 
-void register_httpd(const QueueHandle_t frame_i, const QueueHandle_t frame_o, const bool return_fb);
+void esp_who_register_httpd(const QueueHandle_t frame_i, const QueueHandle_t frame_o, const bool return_fb);

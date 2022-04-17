@@ -14,13 +14,13 @@ typedef struct
 static xQueueHandle gpio_evt_queue = NULL;
 static QueueHandle_t xQueueKeyStateO = NULL;
 
-static void IRAM_ATTR gpio_isr_handler_key(void *arg)
+static void IRAM_ATTR gpio_isr_handler_key(void* arg)
 {
     uint32_t gpio_num = (uint32_t)arg;
     xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
 }
 
-int key_scan(TickType_t ticks_to_wait)
+key_state_t key_scan(TickType_t ticks_to_wait)
 {
     gpio_num_t io_num;
     BaseType_t press_key = pdFALSE;
@@ -66,10 +66,9 @@ int key_scan(TickType_t ticks_to_wait)
     }
 }
 
-void key_trigger(void *arg)
+void key_trigger(void* arg)
 {
-    int ret = 0;
-
+    key_state_t ret;
     while (1)
     {
         ret = key_scan(portMAX_DELAY);
@@ -81,7 +80,7 @@ void key_trigger(void *arg)
 
 void key_init(gpio_num_t gpio_num)
 {
-    gpio_config_t io_conf = {0};
+    gpio_config_t io_conf = { 0 };
     io_conf.mode = GPIO_MODE_INPUT;
     io_conf.intr_type = GPIO_INTR_ANYEDGE;
     io_conf.pin_bit_mask = 1LL << gpio_num;
@@ -89,7 +88,7 @@ void key_init(gpio_num_t gpio_num)
     gpio_config(&io_conf);
     gpio_evt_queue = xQueueCreate(5, sizeof(uint32_t));
     gpio_install_isr_service(0);
-    gpio_isr_handler_add(gpio_num, gpio_isr_handler_key, (void *)gpio_num);
+    gpio_isr_handler_add(gpio_num, gpio_isr_handler_key, (void*)gpio_num);
 }
 
 void register_button(const gpio_num_t key_io_num, const QueueHandle_t key_state_o)
